@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Análise de Risco & Rebalanceamento</title>
+  <style>
+    /* Estilos mantidos conforme o original */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #2c3e50;
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    .rebalancing-intro {
+      background: #f8f9fa;
+      border-left: 5px solid #2c3e50;
+      padding: 25px;
+      margin-bottom: 30px;
+      border-radius: 0 15px 15px 0;
+    }
+    .portfolio-input {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    .input-section {
+      background: #f8f9fa;
+      padding: 25px;
+      border-radius: 15px;
+      border-left: 4px solid #3498db;
+    }
+    .input-section h3 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+      font-size: 1.3em;
+    }
+    .asset-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 15px;
+      align-items: center;
+    }
+    .asset-row input,
+    .asset-row select {
+      padding: 10px;
+      border: 2px solid #ecf0f1;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .asset-row input:focus,
+    .asset-row select:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+    .add-asset-btn {
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      margin-top: 10px;
+    }
+    .add-asset-btn:hover {
+      background: #219a52;
+    }
+    .analysis-results {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .result-card {
+      background: #f8f9fa;
+      padding: 25px;
+      border-radius: 15px;
+      border-left: 4px solid;
+    }
+    .risk-card { border-left-color: #e74c3c; }
+    .diversification-card { border-left-color: #27ae60; }
+    .allocation-card { border-left-color: #3498db; }
+    .rebalance-card { border-left-color: #f39c12; }
+    .result-title {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 15px;
+    }
+    .result-value {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+    .result-description {
+      color: #7f8c8d;
+      font-size: 0.9em;
+      line-height: 1.4;
+    }
+    .calculate-btn {
+      background: linear-gradient(45deg, #3498db, #2980b9);
+      color: white;
+      border: none;
+      padding: 20px 40px;
+      border-radius: 15px;
+      font-size: 1.2em;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin: 20px 0;
+      transition: transform 0.3s;
+    }
+    .calculate-btn:hover {
+      transform: translateY(-2px);
+    }
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 10px;
+      color: white;
+      font-weight: 700;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+      z-index: 1001;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    .notification.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .notification.success {
+      background: linear-gradient(45deg, #27ae60, #2ecc71);
+    }
+    .notification.error {
+      background: linear-gradient(45deg, #e74c3c, #c0392b);
+    }
+    @media (max-width: 768px) {
+      .portfolio-input {
+        grid-template-columns: 1fr;
+      }
+      .asset-row {
+        grid-template-columns: 1fr;
+      }
+      .analysis-results {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚖️ Análise de Risco & Rebalanceamento</h1>
+      <p>Baseado no Capítulo 22 - "Monitoramento e Rebalanceamento"</p>
+    </div>
+    <div class="rebalancing-intro">
+      <h3>🎯 Por que Rebalancear?</h3>
+      <p><strong>Regra de Ouro:</strong> Rebalanceie quando houver desvio > 5% da alocação estratégica target.</p>
+    </div>
+    <div class="portfolio-input">
+      <div class="input-section">
+        <h3>📊 Composição Atual da Carteira</h3>
+        <div class="asset-row">
+          <strong>Ativo</strong>
+          <strong>Valor (R$)</strong>
+          <strong>% Atual</strong>
+          <strong>Categoria</strong>
+        </div>
+        <div id="currentAssets">
+          <!-- Linhas dinâmicas -->
+        </div>
+        <button class="add-asset-btn" onclick="addAssetRow()">+ Adicionar Ativo</button>
+      </div>
+      <div class="input-section">
+        <h3>🎯 Alocação Estratégica Target</h3>
+        <div class="asset-row">
+          <strong>Categoria</strong>
+          <strong>% Target</strong>
+          <strong>Risco</strong>
+          <strong>Retorno</strong>
+        </div>
+        <div class="asset-row">
+          <span>Renda Variável</span>
+          <input type="number" id="targetRV" value="50" min="0" max="100" oninput="calculate()">
+          <span>Alto</span>
+          <span>12-15%</span>
+        </div>
+        <div class="asset-row">
+          <span>Renda Fixa</span>
+          <input type="number" id="targetRF" value="30" min="0" max="100" oninput="calculate()">
+          <span>Baixo</span>
+          <span>6-8%</span>
+        </div>
+        <div class="asset-row">
+          <span>FIIs</span>
+          <input type="number" id="targetFII" value="15" min="0" max="100" oninput="calculate()">
+          <span>Médio</span>
+          <span>8-12%</span>
+        </div>
+        <div class="asset-row">
+          <span>Internacional</span>
+          <input type="number" id="targetINT" value="5" min="0" max="100" oninput="calculate()">
+          <span>Alto</span>
+          <span>10-18%</span>
+        </div>
+        <div class="asset-row">
+          <span>Commodities</span>
+          <input type="number" id="targetCOM" value="0" min="0" max="100" oninput="calculate()">
+          <span>Muito Alto</span>
+          <span>15-25%</span>
+        </div>
+        <div style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; text-align: center;">
+          <strong>Total Target: <span id="totalTarget">100</span>%</strong>
+        </div>
+      </div>
+    </div>
+    <button class="calculate-btn" onclick="calculate()">📊 Analisar Risco e Calcular Rebalanceamento</button>
+
+    <div class="analysis-results">
+      <div class="result-card risk-card">
+        <div class="result-title">⚠️ Nível de Risco</div>
+        <div class="result-value" id="riskScore">7.2</div>
+        <div class="result-description">Pontuação de risco geral da carteira (1-10)</div>
+      </div>
+      <div class="result-card diversification-card">
+        <div class="result-title">🌐 Diversificação</div>
+        <div class="result-value" id="diversificationScore">85%</div>
+        <div class="result-description">Nível de diversificação da carteira</div>
+      </div>
+      <div class="result-card allocation-card">
+        <div class="result-title">⚖️ Desvio da Estratégia</div>
+        <div class="result-value" id="allocationDeviation">3.2%</div>
+        <div class="result-description">Maior desvio da alocação target</div>
+      </div>
+      <div class="result-card rebalance-card">
+        <div class="result-title">🔄 Necessidade de Rebalanceamento</div>
+        <div class="result-value" id="rebalanceNeed">Baixa</div>
+        <div class="result-description">Com base no desvio > 5%</div>
+      </div>
+    </div>
+
+    <div class="current-vs-target">
+      <h3>📊 Alocação Atual vs Target</h3>
+      <table class="allocation-table">
+        <thead>
+          <tr>
+            <th>Categoria</th>
+            <th>Atual (%)</th>
+            <th>Target (%)</th>
+            <th>Desvio</th>
+            <th>Valor Atual (R$)</th>
+            <th>Valor Target (R$)</th>
+            <th>Diferença (R$)</th>
+          </tr>
+        </thead>
+        <tbody id="allocationTableBody">
+          <!-- Preenchido dinamicamente -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="rebalance-actions" id="rebalanceActions" style="display: none;">
+      <h3>🎯 Ações de Rebalanceamento Recomendadas</h3>
+      <ul class="action-list" id="actionsList"></ul>
+    </div>
+  </div>
+
+  <div id="notification" class="notification"></div>
+
+  <script>
+    let assetCount = 0;
+
+    // Inicializa com alguns ativos exemplo
+    window.onload = () => {
+      addAssetRow();
+      addAssetRow();
+      addAssetRow();
+      document.getElementById('value1').value = 10000;
+      document.getElementById('value2').value = 5000;
+      document.getElementById('value3').value = 3000;
+      calculate();
+    };
+
+    function addAssetRow() {
+      assetCount++;
+      const container = document.getElementById('currentAssets');
+      const newRow = document.createElement('div');
+      newRow.className = 'asset-row';
+      newRow.innerHTML = `
+        <input type="text" placeholder="Ex: BOVA11" id="asset${assetCount}" required>
+        <input type="number" placeholder="0" id="value${assetCount}" oninput="calculate()" min="0">
+        <input type="number" placeholder="%" id="current${assetCount}" readonly>
+        <select id="category${assetCount}">
+          <option value="renda-variavel">Renda Variável</option>
+          <option value="renda-fixa">Renda Fixa</option>
+          <option value="fiis">FIIs</option>
+          <option value="internacional">Internacional</option>
+          <option value="commodities">Commodities</option>
+        </select>
+      `;
+      container.appendChild(newRow);
+    }
+
+    function formatCurrency(value) {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 0
+      }).format(value);
+    }
+
+    function showNotification(message, type = 'success') {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = `notification ${type}`;
+      notification.classList.add('show');
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+
+    function getCategoryName(category) {
+      const names = {
+        'renda-variavel': 'Renda Variável',
+        'renda-fixa': 'Renda Fixa',
+        'fiis': 'FIIs',
+        'internacional': 'Internacional',
+        'commodities': 'Commodities'
+      };
+      return names[category] || category;
+    }
+
+    function calculate() {
+      const assets = [];
+      let totalValue = 0;
+      for (let i = 1; i <= assetCount; i++) {
+        const name = document.getElementById(`asset${i}`)?.value;
+        const value = parseFloat(document.getElementById(`value${i}`)?.value) || 0;
+        const category = document.getElementById(`category${i}`)?.value;
+        if (name && value >= 0) {
+          assets.push({ name, value, category });
+          totalValue += value;
+        }
+      }
+
+      if (totalValue === 0) {
+        showNotification("Por favor, insira valores válidos na carteira.", "error");
+        return;
+      }
+
+      // Calcular percentuais atuais
+      assets.forEach((asset, index) => {
+        const percentage = ((asset.value / totalValue) * 100).toFixed(1);
+        const currentInput = document.getElementById(`current${index + 1}`);
+        if (currentInput) currentInput.value = percentage;
+      });
+
+      // Calcular alocação por categoria
+      const categoryAllocation = {
+        'renda-variavel': 0,
+        'renda-fixa': 0,
+        'fiis': 0,
+        'internacional': 0,
+        'commodities': 0
+      };
+      assets.forEach(asset => {
+        categoryAllocation[asset.category] += asset.value;
+      });
+
+      Object.keys(categoryAllocation).forEach(category => {
+        categoryAllocation[category] = (categoryAllocation[category] / totalValue * 100).toFixed(1);
+      });
+
+      const targets = {
+        'renda-variavel': parseFloat(document.getElementById('targetRV').value) || 0,
+        'renda-fixa': parseFloat(document.getElementById('targetRF').value) || 0,
+        'fiis': parseFloat(document.getElementById('targetFII').value) || 0,
+        'internacional': parseFloat(document.getElementById('targetINT').value) || 0,
+        'commodities': parseFloat(document.getElementById('targetCOM').value) || 0
+      };
+
+      const totalTarget = Object.values(targets).reduce((sum, val) => sum + val, 0);
+      document.getElementById('totalTarget').textContent = totalTarget.toFixed(0);
+
+      if (totalTarget !== 100) {
+        showNotification("Soma dos targets deve ser igual a 100%", "error");
+      }
+
+      calculateRiskMetrics(categoryAllocation, assets.length);
+      calculateRebalancing(categoryAllocation, targets, totalValue);
+      updateAllocationTable(categoryAllocation, targets, totalValue);
+    }
+
+    function calculateRiskMetrics(allocation, assetCount) {
+      const riskWeights = {
+        'renda-variavel': 8,
+        'renda-fixa': 2,
+        'fiis': 5,
+        'internacional': 9,
+        'commodities': 10
+      };
+      let riskScore = 0;
+      Object.keys(allocation).forEach(category => {
+        riskScore += (parseFloat(allocation[category]) / 100) * riskWeights[category];
+      });
+      riskScore = Math.min(riskScore, 10).toFixed(1);
+      document.getElementById('riskScore').textContent = riskScore;
+    }
+
+    function calculateRebalancing(current, targets, totalValue) {
+      let maxDeviation = 0;
+      const actions = [];
+
+      Object.keys(current).forEach(category => {
+        const currentVal = parseFloat(current[category]);
+        const targetVal = parseFloat(targets[category]);
+        const deviation = Math.abs(currentVal - targetVal);
+        maxDeviation = Math.max(maxDeviation, deviation);
+        if (deviation > 5) {
+          const currentValue = totalValue * (currentVal / 100);
+          const targetValue = totalValue * (targetVal / 100);
+          const difference = targetValue - currentValue;
+          if (difference > 0) {
+            actions.push({
+              type: 'buy',
+              category: category,
+              amount: difference,
+              text: `Comprar mais ${getCategoryName(category)}`
+            });
+          } else {
+            actions.push({
+              type: 'sell',
+              category: category,
+              amount: Math.abs(difference),
+              text: `Reduzir posição em ${getCategoryName(category)}`
+            });
+          }
+        }
+      });
+
+      document.getElementById('allocationDeviation').textContent = maxDeviation.toFixed(1) + '%';
+
+      let rebalanceNeed = 'Baixa';
+      if (maxDeviation > 10) rebalanceNeed = 'Alta';
+      else if (maxDeviation > 5) rebalanceNeed = 'Média';
+      document.getElementById('rebalanceNeed').textContent = rebalanceNeed;
+
+      if (actions.length > 0) showRebalanceActions(actions);
+      else document.getElementById('rebalanceActions').style.display = 'none';
+    }
+
+    function updateAllocationTable(current, targets, totalValue) {
+      const tbody = document.getElementById('allocationTableBody');
+      tbody.innerHTML = '';
+      Object.keys(current).forEach(category => {
+        const currentPercent = parseFloat(current[category]).toFixed(1);
+        const targetPercent = parseFloat(targets[category]).toFixed(1);
+        const deviation = currentPercent - targetPercent;
+        const currentValue = totalValue * (currentPercent / 100);
+        const targetValue = totalValue * (targetPercent / 100);
+        const difference = currentValue - targetValue;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><strong>${getCategoryName(category)}</strong></td>
+          <td>${currentPercent}%</td>
+          <td>${targetPercent}%</td>
+          <td class="deviation ${deviation > 0 ? 'positive' : 'negative'}">${deviation > 0 ? '+' : ''}${deviation}%</td>
+          <td>${formatCurrency(currentValue)}</td>
+          <td>${formatCurrency(targetValue)}</td>
+          <td class="deviation ${difference > 0 ? 'positive' : 'negative'}">${difference > 0 ? '+' : ''}${formatCurrency(difference)}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function showRebalanceActions(actions) {
+      const list = document.getElementById('actionsList');
+      list.innerHTML = '';
+      actions.forEach(action => {
+        const li = document.createElement('li');
+        li.className = `action-${action.type}`;
+        li.innerHTML = `<span>${action.text}</span><span class="action-amount">${formatCurrency(action.amount)}</span>`;
+        list.appendChild(li);
+      });
+      document.getElementById('rebalanceActions').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
